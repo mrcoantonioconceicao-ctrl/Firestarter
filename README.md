@@ -1,8 +1,11 @@
-# 🔥 Firestarter
-### *Next-Generation Autonomous Web Extractor & Intelligent Ingestion Engine*
+# 🔥 Firestarter Engine
 
-## 🎯 Executive Summary
-O **Firestarter** é um motor de extração web de alto rendimento e baixa latência para RAG e GraphRAG, focado em CTOs, CFOs e Founders.
+> **Autonomous Web Extractor & GraphRAG Ingestion Engine** (Running live on Termux).
 
-## 🚀 Quick Start
-git clone https://github.com/mrcoantonioconceicao-ctrl/Firestarter.git
+## 🚀 Status Operacional
+- **Última Consulta Natural Processada:** `Teocracia`
+- **Última URL Resolvida & Ingerida:** [https://concepto.de/teocracia/](https://concepto.de/teocracia/)
+- **Runtime:** Bun + TypeScript + Cheerio
+
+---
+*Gerado automaticamente pelo núcleo autônomo do Firestarter em 2026-09-28T03:09:31.957Z.*
