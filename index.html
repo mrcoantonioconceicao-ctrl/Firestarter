@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Firestarter | Enterprise RAG Engine</title>
+    <title>Firestarter | Natural Language GraphRAG Engine</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
@@ -12,17 +12,17 @@
         <header class="flex justify-between items-center pb-6 border-b border-slate-800">
             <div>
                 <h1 class="text-2xl font-black text-amber-500 tracking-wider">🔥 FIRESTARTER</h1>
-                <p class="text-xs text-slate-400">Autonomous Web Extractor & GraphRAG Ingestion Engine</p>
+                <p class="text-xs text-slate-400">Natural Language Web Extractor & GraphRAG Engine</p>
             </div>
-            <span class="px-3 py-1 bg-emerald-950 text-emerald-400 text-xs font-semibold rounded-full border border-emerald-800">Production Ready</span>
+            <span class="px-3 py-1 bg-emerald-950 text-emerald-400 text-xs font-semibold rounded-full border border-emerald-800">AI-Ready v2.3</span>
         </header>
 
         <div class="mt-6 space-y-4">
             <div>
-                <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Endpoint API & URL Alvo</label>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Consulta em Linguagem Natural ou URL Direta</label>
                 <div class="flex gap-2">
-                    <input type="text" id="targetUrl" placeholder="https://exemplo.com/artigo" class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-amber-500">
-                    <button onclick="startScraping()" id="scrapeBtn" class="bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold px-6 py-2 rounded-lg text-sm transition-all shadow-lg">Extrair & Ingerir</button>
+                    <input type="text" id="targetUrl" placeholder="Ex: artigo sobre rust ou https://exemplo.com" class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-amber-500">
+                    <button onclick="startScraping()" id="scrapeBtn" class="bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold px-6 py-2 rounded-lg text-sm transition-all shadow-lg">Pesquisar & Ingerir</button>
                 </div>
             </div>
 
@@ -50,7 +50,7 @@
                 </div>
 
                 <div id="viewMarkdown" class="bg-slate-950 border border-slate-800 rounded-lg p-4 min-h-[300px] max-h-[500px] overflow-y-auto text-sm leading-relaxed prose prose-invert">
-                    <span class="text-slate-600 italic">Insira uma URL e clique em extrair para ver o payload processado...</span>
+                    <span class="text-slate-600 italic">Escreva o que procura em linguagem natural ou insira uma URL...</span>
                 </div>
 
                 <div id="viewChunks" class="hidden space-y-3 max-h-[500px] overflow-y-auto">
@@ -64,24 +64,24 @@
         let currentData = null;
 
         async function startScraping() {
-            const urlInput = document.getElementById("targetUrl").value;
+            const inputVal = document.getElementById("targetUrl").value;
             const btn = document.getElementById("scrapeBtn");
             const mdView = document.getElementById("viewMarkdown");
 
-            if (!urlInput) {
-                alert("Por favor, insira uma URL válida.");
+            if (!inputVal) {
+                alert("Por favor, insira uma consulta ou URL.");
                 return;
             }
 
             btn.disabled = true;
-            btn.innerText = "A processar...";
-            mdView.innerHTML = '<span class="text-amber-400 animate-pulse">A executar extração de alta performance via Cheerio + Bun...</span>';
+            btn.innerText = "A pesquisar...";
+            mdView.innerHTML = '<span class="text-amber-400 animate-pulse">A resolver intenção de linguagem natural e extrair dados...</span>';
 
             try {
                 const res = await fetch("http://127.0.0.1:3001/v1/ingest", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ url: urlInput })
+                    body: JSON.stringify({ url: inputVal })
                 });
 
                 const data = await res.json();
@@ -111,7 +111,7 @@
                 mdView.innerHTML = `<span class="text-red-400">Erro na extração: ${err.message}</span>`;
             } finally {
                 btn.disabled = false;
-                btn.innerText = "Extrair & Ingerir";
+                btn.innerText = "Pesquisar & Ingerir";
             }
         }
 

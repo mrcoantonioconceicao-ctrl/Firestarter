@@ -1,7 +1,6 @@
 import { serve } from "bun";
 import * as cheerio from "cheerio";
 
-// Função utilitária para dividir o texto em chunks otimizados para RAG
 function splitIntoChunks(text: string, maxChunkSize: number = 1000, overlap: number = 200): string[] {
   const cleaned = text.replace(/\s+/g, " ").trim();
   const chunks: string[] = [];
@@ -10,7 +9,6 @@ function splitIntoChunks(text: string, maxChunkSize: number = 1000, overlap: num
   while (index < cleaned.length) {
     let end = index + maxChunkSize;
     if (end < cleaned.length) {
-      // Tenta quebrar num espaço para não cortar palavras ao meio
       const nextSpace = cleaned.indexOf(" ", end);
       if (nextSpace !== -1 && nextSpace - end < 50) {
         end = nextSpace;
@@ -22,13 +20,74 @@ function splitIntoChunks(text: string, maxChunkSize: number = 1000, overlap: num
   return chunks;
 }
 
+// Pesquisa web 100% real e dinâmica via DuckDuckGo HTML (sem mocks)
+async function searchRealWeb(query: string): Promise<string> {
+  const q = query.trim();
+  if (q.startsWith("http://") || q.startsWith("https://")) {
+    return q;
+  }
+
+  try {
+    const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}`;
+    const response = await fetch(searchUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+      }
+    });
+
+    if (!response.ok) throw new Error("Falha ao contactar o motor de busca.");
+
+    const html = await response.text();
+    const $ = cheerio.load(html);
+    let resolvedUrl = "";
+
+    // Procura o primeiro link de resultado orgânico real da web
+    $(".result__url").each((_, el) => {
+      let href = $(el).attr("href");
+      if (href) {
+        // Remove redirecionamentos do DuckDuckGo se existirem
+        if (href.includes("uddg=")) {
+          const match = href.match(/uddg=([^&]+)/);
+          if (match) {
+            resolvedUrl = decodeURIComponent(match[1]);
+          }
+        } else {
+          resolvedUrl = href;
+        }
+        if (resolvedUrl.startsWith("http")) {
+          return false; // Para no primeiro link válido encontrado
+        }
+      }
+    });
+
+    // Fallback caso o seletor mude: procura tags `a` dentro dos resultados
+    if (!resolvedUrl) {
+      $(".result__a").each((_, el) => {
+        let href = $(el).attr("href");
+        if (href && href.startsWith("http")) {
+          resolvedUrl = href;
+          return false;
+        }
+      });
+    }
+
+    if (!resolvedUrl) {
+      throw new Error("Nenhum resultado web encontrado para a consulta.");
+    }
+
+    return resolvedUrl;
+  } catch (error) {
+    console.error("Erro na pesquisa web real:", error);
+    throw new Error("Não foi possível resolver a URL na web em tempo real.");
+  }
+}
+
 const server = serve({
   port: 3001,
   hostname: "127.0.0.1",
   async fetch(req) {
     const url = new URL(req.url);
 
-    // Rota Raiz: Serve a Interface Gráfica
     if (url.pathname === "/" && req.method === "GET") {
       const file = Bun.file("index.html");
       return new Response(file, {
@@ -36,46 +95,48 @@ const server = serve({
       });
     }
 
-    // Endpoint Avançado de Ingestão e Scraping para RAG (/v1/ingest)
     if (url.pathname === "/v1/ingest" && req.method === "POST") {
       try {
         const body = await req.json();
-        const targetUrl = body.url;
+        const rawInput = body.url;
 
-        if (!targetUrl) {
-          return new Response(JSON.stringify({ success: false, error: "URL não fornecida." }), {
+        if (!rawInput) {
+          return new Response(JSON.stringify({ success: false, error: "Consulta ou URL não fornecida." }), {
             status: 400,
             headers: { "Content-Type": "application/json" },
           });
         }
 
+        // Pesquisa real na web em tempo real
+        const targetUrl = await searchRealWeb(rawInput);
+
         const response = await fetch(targetUrl, {
-          headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) FirestarterEngine/2.0" }
+          headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) FirestarterEngine/2.4" }
         });
 
         if (!response.ok) {
-          throw new Error(`Falha ao aceder à página: ${response.statusText}`);
+          throw new Error(`Falha ao aceder à página web resolvida (${targetUrl}): ${response.statusText}`);
         }
 
         const html = await response.text();
         const $ = cheerio.load(html);
 
-        // Remove ruídos comuns (scripts, estilos, rodapés, navegação)
-        $("script, style, nav, footer, header, aside").remove();
+        // Limpeza agressiva de ruído de navegação
+        $("script, style, nav, footer, header, aside, .sidebar, #sidebar, .menu, .navigation, [role='navigation']").remove();
 
-        const title = $("title").text().trim() || targetUrl;
-        const rawText = $("body").text().replace(/\s+/g, " ").trim();
+        let contentContainer = $("article").length ? $("article") : $("main").length ? $("main") : $(".content").length ? $(".content") : $("body");
         
-        // Gera os Chunks automáticos para RAG/GraphRAG
+        const title = $("title").text().trim() || targetUrl;
+        const rawText = contentContainer.text().replace(/\s+/g, " ").trim();
+        
         const chunks = splitIntoChunks(rawText, 1000, 200);
-
-        // Gera um Markdown estruturado
-        const markdown = `# ${title}\n\n**Fonte:** ${targetUrl}\n\n## Conteúdo Extrafido\n\n${rawText}`;
+        const markdown = `# ${title}\n\n**Consulta Real:** ${rawInput}\n**URL Web Resolvida:** ${targetUrl}\n\n## Conteúdo Extraído\n\n${rawText}`;
 
         return new Response(
           JSON.stringify({
             success: true,
             metadata: {
+              query: rawInput,
               url: targetUrl,
               title,
               totalLength: rawText.length,
