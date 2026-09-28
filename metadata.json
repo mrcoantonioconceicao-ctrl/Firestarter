@@ -1,0 +1,6 @@
+{
+  "name": "Rust Web Scraper & Headless Markdown Extractor",
+  "description": "Extrator de dados web em tempo real em Rust com Chromiumoxide, Tokio e suporte a páginas dinâmicas, além de conversor e limpador HTML para Markdown.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
