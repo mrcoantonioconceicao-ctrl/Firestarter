@@ -1,5 +1,6 @@
 import { serve } from "bun";
 import * as cheerio from "cheerio";
+import { execSync } from "child_process";
 
 function splitIntoChunks(text: string, maxChunkSize: number = 1000, overlap: number = 200): string[] {
   const cleaned = text.replace(/\s+/g, " ").trim();
@@ -20,7 +21,7 @@ function splitIntoChunks(text: string, maxChunkSize: number = 1000, overlap: num
   return chunks;
 }
 
-// Pesquisa web 100% real e dinâmica via DuckDuckGo HTML (sem mocks)
+// Pesquisa web 100% real e dinâmica via DuckDuckGo HTML
 async function searchRealWeb(query: string): Promise<string> {
   const q = query.trim();
   if (q.startsWith("http://") || q.startsWith("https://")) {
@@ -41,26 +42,19 @@ async function searchRealWeb(query: string): Promise<string> {
     const $ = cheerio.load(html);
     let resolvedUrl = "";
 
-    // Procura o primeiro link de resultado orgânico real da web
     $(".result__url").each((_, el) => {
       let href = $(el).attr("href");
       if (href) {
-        // Remove redirecionamentos do DuckDuckGo se existirem
         if (href.includes("uddg=")) {
           const match = href.match(/uddg=([^&]+)/);
-          if (match) {
-            resolvedUrl = decodeURIComponent(match[1]);
-          }
+          if (match) resolvedUrl = decodeURIComponent(match[1]);
         } else {
           resolvedUrl = href;
         }
-        if (resolvedUrl.startsWith("http")) {
-          return false; // Para no primeiro link válido encontrado
-        }
+        if (resolvedUrl.startsWith("http")) return false;
       }
     });
 
-    // Fallback caso o seletor mude: procura tags `a` dentro dos resultados
     if (!resolvedUrl) {
       $(".result__a").each((_, el) => {
         let href = $(el).attr("href");
@@ -71,14 +65,42 @@ async function searchRealWeb(query: string): Promise<string> {
       });
     }
 
-    if (!resolvedUrl) {
-      throw new Error("Nenhum resultado web encontrado para a consulta.");
-    }
-
+    if (!resolvedUrl) throw new Error("Nenhum resultado web encontrado.");
     return resolvedUrl;
   } catch (error) {
     console.error("Erro na pesquisa web real:", error);
     throw new Error("Não foi possível resolver a URL na web em tempo real.");
+  }
+}
+
+// Função autônoma para atualizar o README e enviar para o GitHub
+function autoUpdateReadmeAndGit(lastQuery: string, lastUrl: string) {
+  try {
+    const readmeContent = `# 🔥 Firestarter Engine
+
+> **Autonomous Web Extractor & GraphRAG Ingestion Engine** (Running live on Termux).
+
+## 🚀 Status Operacional
+- **Última Consulta Natural Processada:** \`${lastQuery}\`
+- **Última URL Resolvida & Ingerida:** [${lastUrl}](${lastUrl})
+- **Runtime:** Bun + TypeScript + Cheerio
+
+---
+*Gerado automaticamente pelo núcleo autônomo do Firestarter em ${new Date().toISOString()}.*
+`;
+
+    Bun.write("README.md", readmeContent);
+    
+    // Executa git add, commit e push automaticamente
+    execSync("git add README.md server.ts index.html");
+    execSync(`git commit -m "auto: update README and state for query '${lastQuery}'"`);
+    execSync("git push origin main || git push origin master");
+    
+    console.log("🚀 README atualizado e sincronizado com o GitHub com sucesso!");
+    return true;
+  } catch (err) {
+    console.error("Erro no Auto-Git Sync:", err);
+    return false;
   }
 }
 
@@ -107,21 +129,19 @@ const server = serve({
           });
         }
 
-        // Pesquisa real na web em tempo real
         const targetUrl = await searchRealWeb(rawInput);
 
         const response = await fetch(targetUrl, {
-          headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) FirestarterEngine/2.4" }
+          headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) FirestarterEngine/2.5" }
         });
 
         if (!response.ok) {
-          throw new Error(`Falha ao aceder à página web resolvida (${targetUrl}): ${response.statusText}`);
+          throw new Error(`Falha ao aceder à página (${targetUrl}): ${response.statusText}`);
         }
 
         const html = await response.text();
         const $ = cheerio.load(html);
 
-        // Limpeza agressiva de ruído de navegação
         $("script, style, nav, footer, header, aside, .sidebar, #sidebar, .menu, .navigation, [role='navigation']").remove();
 
         let contentContainer = $("article").length ? $("article") : $("main").length ? $("main") : $(".content").length ? $(".content") : $("body");
@@ -131,6 +151,11 @@ const server = serve({
         
         const chunks = splitIntoChunks(rawText, 1000, 200);
         const markdown = `# ${title}\n\n**Consulta Real:** ${rawInput}\n**URL Web Resolvida:** ${targetUrl}\n\n## Conteúdo Extraído\n\n${rawText}`;
+
+        // Aciona a sincronização automática do README e Git em background
+        setTimeout(() => {
+          autoUpdateReadmeAndGit(rawInput, targetUrl);
+        }, 1000);
 
         return new Response(
           JSON.stringify({
