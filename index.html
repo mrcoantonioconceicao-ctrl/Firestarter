@@ -1,103 +1,137 @@
 <!DOCTYPE html>
-<html lang="pt-BR" class="dark">
+<html lang="pt">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Firestarter - Web Extractor Demo</title>
+    <title>Firestarter | Enterprise RAG Engine</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: { darkbg: '#0f172a', cardbg: '#1e293b' }
-                }
-            }
-        }
-    </script>
 </head>
-<body class="bg-darkbg text-slate-100 min-h-screen flex flex-col items-center p-4 sm:p-6">
-    <div class="w-full max-w-3xl mx-auto space-y-6">
-        <header class="border-b border-slate-800 pb-4">
-            <h1 class="text-2xl font-bold tracking-tight text-indigo-400">🔥 Firestarter - Extrator Web</h1>
-            <p class="text-sm text-slate-400">Demonstração de ponta a ponta (Backend Bun + Frontend HTML)</p>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col items-center p-4">
+    <div class="w-full max-w-4xl bg-slate-900 border border-slate-800 rounded-xl shadow-2xl p-6 mt-6">
+        <header class="flex justify-between items-center pb-6 border-b border-slate-800">
+            <div>
+                <h1 class="text-2xl font-black text-amber-500 tracking-wider">🔥 FIRESTARTER</h1>
+                <p class="text-xs text-slate-400">Autonomous Web Extractor & GraphRAG Ingestion Engine</p>
+            </div>
+            <span class="px-3 py-1 bg-emerald-950 text-emerald-400 text-xs font-semibold rounded-full border border-emerald-800">Production Ready</span>
         </header>
 
-        <div class="bg-cardbg border border-slate-800 rounded-xl p-5 shadow-lg space-y-4">
+        <div class="mt-6 space-y-4">
             <div>
-                <label class="block text-sm font-medium text-slate-300 mb-1">URL Alvo</label>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Endpoint API & URL Alvo</label>
                 <div class="flex gap-2">
-                    <input type="url" id="targetUrl" placeholder="https://news.ycombinator.com" value="https://news.ycombinator.com"
-                        class="flex-1 bg-darkbg border border-slate-700 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 text-slate-100">
-                    <button onclick="handleScrape()" id="scrapeBtn"
-                        class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-5 py-2.5 rounded-lg text-sm transition-all">
-                        Extrair
-                    </button>
+                    <input type="text" id="targetUrl" placeholder="https://exemplo.com/artigo" class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-amber-500">
+                    <button onclick="startScraping()" id="scrapeBtn" class="bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold px-6 py-2 rounded-lg text-sm transition-all shadow-lg">Extrair & Ingerir</button>
                 </div>
             </div>
-            <div>
-                <label class="block text-xs font-semibold text-slate-400 mb-1">Endpoint da API Backend</label>
-                <input type="text" id="apiUrl" value="http://localhost:3001/v1/scrape" 
-                    class="w-full bg-darkbg border border-slate-700 rounded px-3 py-1.5 text-xs text-slate-300 font-mono">
-            </div>
-        </div>
 
-        <div class="bg-cardbg border border-slate-800 rounded-xl p-5 shadow-lg space-y-3">
-            <div class="flex justify-between items-center border-b border-slate-800 pb-2">
-                <span class="text-sm font-medium text-indigo-400">Resultado (Markdown Limpo)</span>
-                <button onclick="copyOutput()" id="copyBtn" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded">Copiar</button>
+            <!-- Métricas Executivas -->
+            <div id="metrics" class="hidden grid grid-cols-3 gap-4 pt-2">
+                <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 text-center">
+                    <span class="block text-xs text-slate-500">Total Carateres</span>
+                    <span id="statChars" class="text-lg font-bold text-amber-400">-</span>
+                </div>
+                <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 text-center">
+                    <span class="block text-xs text-slate-500">Blocos (Chunks)</span>
+                    <span id="statChunks" class="text-lg font-bold text-amber-400">-</span>
+                </div>
+                <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 text-center">
+                    <span class="block text-xs text-slate-500">Tokens Est.</span>
+                    <span id="statTokens" class="text-lg font-bold text-amber-400">-</span>
+                </div>
             </div>
-            <div id="tabPreview" class="min-h-[250px] max-h-[450px] overflow-y-auto p-4 bg-darkbg rounded-lg border border-slate-800 text-sm leading-relaxed">
-                <p class="text-slate-500 italic">O resultado da extração aparecerá aqui...</p>
+
+            <!-- Resultados -->
+            <div class="pt-4 border-t border-slate-800">
+                <div class="flex border-b border-slate-800 mb-4">
+                    <button onclick="switchTab('markdown')" id="tabMd" class="px-4 py-2 text-sm font-bold border-b-2 border-amber-500 text-amber-500">Markdown View</button>
+                    <button onclick="switchTab('chunks')" id="tabChunks" class="px-4 py-2 text-sm font-bold border-b-2 border-transparent text-slate-400 hover:text-slate-200">GraphRAG Chunks</button>
+                </div>
+
+                <div id="viewMarkdown" class="bg-slate-950 border border-slate-800 rounded-lg p-4 min-h-[300px] max-h-[500px] overflow-y-auto text-sm leading-relaxed prose prose-invert">
+                    <span class="text-slate-600 italic">Insira uma URL e clique em extrair para ver o payload processado...</span>
+                </div>
+
+                <div id="viewChunks" class="hidden space-y-3 max-h-[500px] overflow-y-auto">
+                    <span class="text-slate-600 italic">Os blocos segmentados aparecerão aqui...</span>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-        let currentMarkdown = "";
+        let currentData = null;
 
-        async function handleScrape() {
-            const url = document.getElementById('targetUrl').value.trim();
-            const apiUrl = document.getElementById('apiUrl').value.trim();
-            const btn = document.getElementById('scrapeBtn');
-            const previewDiv = document.getElementById('tabPreview');
+        async function startScraping() {
+            const urlInput = document.getElementById("targetUrl").value;
+            const btn = document.getElementById("scrapeBtn");
+            const mdView = document.getElementById("viewMarkdown");
 
-            if (!url) return alert('Insira uma URL.');
+            if (!urlInput) {
+                alert("Por favor, insira uma URL válida.");
+                return;
+            }
 
             btn.disabled = true;
-            btn.textContent = "Extraindo...";
-            previewDiv.innerHTML = `<p class="text-indigo-400 animate-pulse">Processando requisição no backend...</p>`;
+            btn.innerText = "A processar...";
+            mdView.innerHTML = '<span class="text-amber-400 animate-pulse">A executar extração de alta performance via Cheerio + Bun...</span>';
 
             try {
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url })
+                const res = await fetch("http://127.0.0.1:3001/v1/ingest", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ url: urlInput })
                 });
 
-                const data = await response.json();
+                const data = await res.json();
+                if (!data.success) throw new Error(data.error);
 
-                if (response.ok) {
-                    currentMarkdown = data.markdown || "Extraído com sucesso!";
-                    previewDiv.innerHTML = marked.parse(currentMarkdown);
-                } else {
-                    previewDiv.innerHTML = `<p class="text-red-400">Erro: ${data.error || 'Falha ao processar'}</p>`;
-                }
-            } catch (error) {
-                previewDiv.innerHTML = `<p class="text-red-400">Erro de conexão: Verifique se o servidor está rodando.</p>`;
+                currentData = data;
+
+                // Atualizar Métricas
+                document.getElementById("metrics").classList.remove("hidden");
+                document.getElementById("statChars").innerText = data.metadata.totalLength.toLocaleString();
+                document.getElementById("statChunks").innerText = data.metadata.totalChunks;
+                document.getElementById("statTokens").innerText = data.metadata.estimatedTokens.toLocaleString();
+
+                // Renderizar Markdown
+                mdView.innerHTML = marked.parse(data.markdown);
+
+                // Renderizar Chunks
+                const chunksView = document.getElementById("viewChunks");
+                chunksView.innerHTML = data.chunks.map((chunk, idx) => `
+                    <div class="bg-slate-950 border border-slate-800 p-3 rounded-lg text-xs font-mono">
+                        <div class="text-amber-500 font-bold mb-1">CHUNK #${idx + 1}</div>
+                        <p class="text-slate-300">${chunk}</p>
+                    </div>
+                `).join("");
+
+            } catch (err) {
+                mdView.innerHTML = `<span class="text-red-400">Erro na extração: ${err.message}</span>`;
             } finally {
                 btn.disabled = false;
-                btn.textContent = "Extrair";
+                btn.innerText = "Extrair & Ingerir";
             }
         }
 
-        function copyOutput() {
-            if (!currentMarkdown) return alert('Nada para copiar.');
-            navigator.clipboard.writeText(currentMarkdown);
-            const btn = document.getElementById('copyBtn');
-            btn.textContent = "Copiado!";
-            setTimeout(() => btn.textContent = "Copiar", 2000);
+        function switchTab(tab) {
+            const mdTab = document.getElementById("tabMd");
+            const chunksTab = document.getElementById("tabChunks");
+            const mdView = document.getElementById("viewMarkdown");
+            const chunksView = document.getElementById("viewChunks");
+
+            if (tab === 'markdown') {
+                mdTab.className = "px-4 py-2 text-sm font-bold border-b-2 border-amber-500 text-amber-500";
+                chunksTab.className = "px-4 py-2 text-sm font-bold border-b-2 border-transparent text-slate-400 hover:text-slate-200";
+                mdView.classList.remove("hidden");
+                chunksView.classList.add("hidden");
+            } else {
+                chunksTab.className = "px-4 py-2 text-sm font-bold border-b-2 border-amber-500 text-amber-500";
+                mdTab.className = "px-4 py-2 text-sm font-bold border-b-2 border-transparent text-slate-400 hover:text-slate-200";
+                chunksView.classList.remove("hidden");
+                mdView.classList.add("hidden");
+            }
         }
     </script>
 </body>
